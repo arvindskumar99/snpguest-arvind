@@ -5,10 +5,10 @@ mod certs;
 mod display;
 mod fetch;
 mod key;
+mod measure;
 mod ok;
 mod report;
 mod verify;
-mod measure;
 
 #[cfg(feature = "hyperv")]
 mod hyperv;
@@ -17,9 +17,9 @@ use certs::CertificatesArgs;
 use display::DisplayCmd;
 use fetch::FetchCmd;
 use key::KeyArgs;
+use measure::MeasureArgs;
 use report::ReportArgs;
 use verify::VerifyCmd;
-use measure::MeasureArgs;
 
 use anyhow::{Context, Result};
 use clap::{arg, Parser, Subcommand, ValueEnum};
@@ -64,10 +64,8 @@ enum SnpGuestCmd {
     #[command(subcommand)]
     Ok,
 
-    #[structopt(about = "Use the guest's attributes to create a pre calculated measurement.")]
+    /// Key command to create a pre calculated measurement.
     Measure(MeasureArgs),
-
-
 }
 
 fn main() -> Result<()> {
@@ -89,7 +87,7 @@ fn main() -> Result<()> {
         SnpGuestCmd::Display(subcmd) => display::cmd(subcmd, snpguest.quiet),
         SnpGuestCmd::Key(args) => key::get_derived_key(args),
         SnpGuestCmd::Ok => ok::cmd(snpguest.quiet),
-        SnpGuestCmd::Measure(args) => measure::cmd(args),
+        SnpGuestCmd::Measure(args) => measure::get_measurement(args),
     };
 
     if let Err(ref e) = status {
