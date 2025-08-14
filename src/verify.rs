@@ -16,6 +16,8 @@ use openssl::{ecdsa::EcdsaSig, sha::Sha384};
 use sev::certs::snp::Chain;
 use sev::parser::ByteParser;
 
+use hex::FromHex;
+
 #[derive(Subcommand)]
 pub enum VerifyCmd {
     /// Verify the certificate chain.
@@ -180,9 +182,6 @@ mod attestation {
         }
     }
 
-    use base64::{engine::general_purpose, Engine as _};
-    use hex::FromHex;
-
     #[derive(Parser)]
     pub struct Args {
         /// Path to directory containing VCEK.
@@ -205,15 +204,15 @@ mod attestation {
         #[arg(short, long, conflicts_with = "tcb")]
         pub signature: bool,
 
-        /// Optional measurement string (hex or base64, 48 bytes / 96 chars)
-        #[arg(short, long, value_name = "measure")]
+        /// Optional measurement string (hex, 48 bytes / 96 chars)
+        #[arg(short, long, value_name = "measurement")]
         pub measurement: Option<String>,
 
-        /// Optional host_data string (hex or base64, 32 bytes / 64 chars)
+        /// Optional host_data string (hex, 32 bytes / 64 chars)
         #[arg(short = 'd', long, value_name = "host_data")]
         pub host_data: Option<String>,
 
-        /// Optional report_data string (hex or base64, 64 bytes / 128 chars)
+        /// Optional report_data string (hex, 64 bytes / 128 chars)
         #[arg(short, long, value_name = "report_data")]
         pub report_data: Option<String>,
     }
@@ -470,18 +469,16 @@ mod attestation {
         Ok(())
     }
 
-    fn decode_hex_or_base64(input: &str) -> Result<Vec<u8>> {
+    fn decode_hex_or_decimal(input: &str) -> Result<Vec<u8>> {
         // Look for "0x" at beginning. If it exists, treat as a hex.
         if let Some(hex_str) = input.strip_prefix("0x") {
             return Ok(Vec::from_hex(hex_str)?);
         }
-
-        match general_purpose::STANDARD.decode(input) {
-            Ok(bytes) => Ok(bytes),
-            Err(_) => Err(anyhow::anyhow!("Invalid input: If providing hex, please prefix it with '0x'. Otherwise, ensure it's a valid base64 value.")),
+        else {
+            Ok(input.as_bytes().to_vec())
         }
     }
-
+    
     fn verify_field(
         field_name: &str,
         expected: &[u8],
@@ -489,7 +486,7 @@ mod attestation {
         expected_len: usize,
         quiet: bool,
     ) -> Result<()> {
-        let actual = decode_hex_or_base64(provided)?;
+        let actual = decode_hex_or_decimal(provided)?;
 
         if actual.len() != expected_len {
             return Err(anyhow::anyhow!(
